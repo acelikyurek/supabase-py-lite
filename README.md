@@ -1,11 +1,11 @@
-# supabase-lite
+# supabase-py-lite
 
 > In-memory Supabase client for testing. Zero infrastructure, drop-in replacement for `supabase-py`.
 
 Like Qdrant's `client(":memory:")`, but for Supabase.
 
 ```python
-from supabase_lite import create_client
+from supabase_py_lite import create_client
 
 client = create_client(":memory:")
 
@@ -32,7 +32,7 @@ pip install git+https://github.com/acelikyurek/supabase-py-lite
 ## Usage
 
 ```python
-from supabase_lite import create_client
+from supabase_py_lite import create_client
 
 # In-memory (for testing)
 client = create_client(":memory:")
@@ -141,7 +141,7 @@ print(res.data[0]["meta"]["tags"])  # ["python", "supabase"]
 
 ```python
 import pytest
-from supabase_lite import create_client
+from supabase_py_lite import create_client
 
 @pytest.fixture
 def db():
@@ -179,8 +179,8 @@ def test_create_user(db):
 ## Development
 
 ```bash
-git clone https://github.com/acelikyurek/supabase-lite
-cd supabase-lite
+git clone https://github.com/acelikyurek/supabase-py-lite
+cd supabase-py-lite
 uv sync --group dev
 uv run pytest -v
 ```
