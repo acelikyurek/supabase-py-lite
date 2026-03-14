@@ -26,9 +26,7 @@ print(result.data)  # {"id": 1, "name": "Alice"}
 ## Install
 
 ```bash
-uv add supabase-lite
-# or
-pip install supabase-lite
+pip install git+https://github.com/acelikyurek/supabase-py-lite
 ```
 
 ## Usage
@@ -177,14 +175,11 @@ def test_create_user(db):
 | Auto-create tables | ✅ |
 | Foreign key joins | 🚧 Planned |
 | `.or_() / .not_()` | 🚧 Planned |
-| `client.auth` (mock) | 🚧 Planned |
-| `client.storage` (mock) | 🚧 Planned |
-| DuckDB backend | 🚧 Planned |
 
 ## Development
 
 ```bash
-git clone https://github.com/yourname/supabase-lite
+git clone https://github.com/acelikyurek/supabase-lite
 cd supabase-lite
 uv sync --group dev
 uv run pytest -v
