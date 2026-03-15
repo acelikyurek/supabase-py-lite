@@ -100,34 +100,58 @@ class SQLiteEngine(BaseEngine):
                 existing.add(col_name)
         self.conn.commit()
 
-    def _build_where(
-        self, filters: list[tuple[str, str, Any]]
+    # ------------------------------------------------------------------
+    # Filter building
+    # ------------------------------------------------------------------
+
+    def _build_single_clause(
+        self, col: str, op: str, val: Any
     ) -> tuple[str, list[Any]]:
+        """Build a SQL clause for one filter condition."""
+        if op == "in":
+            placeholders = ", ".join("?" for _ in val)
+            return f"`{col}` IN ({placeholders})", list(val)
+        if op == "is":
+            if val is None:
+                return f"`{col}` IS NULL", []
+            return f"`{col}` IS ?", [val]
+        if op == "contains":
+            return (
+                f"EXISTS (SELECT 1 FROM json_each(`{col}`) WHERE json_each.value = ?)",
+                [val],
+            )
+        sql_op = OPERATOR_MAP.get(op, "=")
+        return f"`{col}` {sql_op} ?", [val]
+
+    def _build_where(self, filters: list[Any]) -> tuple[str, list[Any]]:
         if not filters:
             return "", []
-        clauses = []
+        clauses: list[str] = []
         params: list[Any] = []
-        for col, op, val in filters:
-            if op == "in":
-                placeholders = ", ".join("?" for _ in val)
-                clauses.append(f"`{col}` IN ({placeholders})")
-                params.extend(val)
-            elif op == "is":
-                if val is None:
-                    clauses.append(f"`{col}` IS NULL")
-                else:
-                    clauses.append(f"`{col}` IS ?")
-                    params.append(val)
-            elif op == "contains":
-                clauses.append(
-                    f"EXISTS (SELECT 1 FROM json_each(`{col}`) WHERE json_each.value = ?)"
-                )
-                params.append(val)
+        for f in filters:
+            tag = f[0]
+            if tag == "__or__":
+                or_clauses: list[str] = []
+                for col, op, val in f[1]:
+                    clause, p = self._build_single_clause(col, op, val)
+                    or_clauses.append(clause)
+                    params.extend(p)
+                clauses.append("(" + " OR ".join(or_clauses) + ")")
+            elif tag == "__not__":
+                _, col, op, val = f
+                clause, p = self._build_single_clause(col, op, val)
+                clauses.append(f"NOT ({clause})")
+                params.extend(p)
             else:
-                sql_op = OPERATOR_MAP.get(op, "=")
-                clauses.append(f"`{col}` {sql_op} ?")
-                params.append(val)
+                col, op, val = f
+                clause, p = self._build_single_clause(col, op, val)
+                clauses.append(clause)
+                params.extend(p)
         return "WHERE " + " AND ".join(clauses), params
+
+    # ------------------------------------------------------------------
+    # Serialization helpers
+    # ------------------------------------------------------------------
 
     def _serialize_value(self, val: Any) -> Any:
         if isinstance(val, (dict, list)):
@@ -146,11 +170,15 @@ class SQLiteEngine(BaseEngine):
                     pass
         return d
 
+    # ------------------------------------------------------------------
+    # Query execution
+    # ------------------------------------------------------------------
+
     def execute_select(
         self,
         table: str,
         columns: list[str],
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         order: Optional[list[tuple[str, bool]]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
@@ -249,7 +277,7 @@ class SQLiteEngine(BaseEngine):
         self,
         table: str,
         values: dict[str, Any],
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         returning: bool = True,
     ) -> list[dict[str, Any]]:
         set_parts = ", ".join(f"`{k}` = ?" for k in values.keys())
@@ -281,7 +309,7 @@ class SQLiteEngine(BaseEngine):
     def execute_delete(
         self,
         table: str,
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         returning: bool = True,
     ) -> list[dict[str, Any]]:
         where_clause, params = self._build_where(filters)
