@@ -164,6 +164,7 @@ class SQLiteEngine(BaseEngine):
         rows: list[dict[str, Any]],
         upsert: bool = False,
         on_conflict: Optional[str] = None,
+        ignore_duplicates: bool = False,
         returning: bool = True,
     ) -> list[dict[str, Any]]:
         if not rows:
@@ -181,14 +182,25 @@ class SQLiteEngine(BaseEngine):
             placeholders = ", ".join("?" for _ in cols)
             col_names = ", ".join(f"`{c}`" for c in cols)
             if upsert:
-                conflict_col = on_conflict or "id"
-                update_parts = ", ".join(
-                    f"`{c}` = excluded.`{c}`" for c in cols if c != conflict_col
-                )
-                sql = (
-                    f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders}) "
-                    f"ON CONFLICT(`{conflict_col}`) DO UPDATE SET {update_parts}"
-                )
+                if ignore_duplicates:
+                    sql = (
+                        f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders}) "
+                        f"ON CONFLICT DO NOTHING"
+                    )
+                else:
+                    conflict_cols = [
+                        c.strip() for c in (on_conflict or "id").split(",")
+                    ]
+                    conflict_target = ", ".join(f"`{c}`" for c in conflict_cols)
+                    update_parts = ", ".join(
+                        f"`{c}` = excluded.`{c}`"
+                        for c in cols
+                        if c not in conflict_cols
+                    )
+                    sql = (
+                        f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders}) "
+                        f"ON CONFLICT({conflict_target}) DO UPDATE SET {update_parts}"
+                    )
             else:
                 sql = f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders})"
             try:
