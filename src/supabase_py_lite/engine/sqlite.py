@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any, Optional
 
 from .base import BaseEngine
+from ..exceptions import QueryError, TableNotFoundError
 
 OPERATOR_MAP = {
     "eq": "=",
@@ -142,7 +143,14 @@ class SQLiteEngine(BaseEngine):
             sql += f" LIMIT {limit}"
         if offset is not None:
             sql += f" OFFSET {offset}"
-        rows = self.conn.execute(sql, params).fetchall()
+        try:
+            rows = self.conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                raise TableNotFoundError(f"Table '{table}' does not exist") from e
+            raise QueryError(str(e)) from e
+        except sqlite3.Error as e:
+            raise QueryError(str(e)) from e
         result = [self._deserialize_row(r) for r in rows]
         total = None
         if count == "exact":
@@ -183,7 +191,10 @@ class SQLiteEngine(BaseEngine):
                 )
             else:
                 sql = f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders})"
-            cur = self.conn.execute(sql, vals)
+            try:
+                cur = self.conn.execute(sql, vals)
+            except sqlite3.Error as e:
+                raise QueryError(str(e)) from e
             if returning:
                 inserted = self.conn.execute(
                     f"SELECT * FROM `{table}` WHERE rowid = ?", (cur.lastrowid,)
@@ -209,7 +220,14 @@ class SQLiteEngine(BaseEngine):
             before = self.conn.execute(select_sql, where_params).fetchall()
             rowids = [r["_rowid"] for r in before]
         sql = f"UPDATE `{table}` SET {set_parts} {where_clause}"
-        self.conn.execute(sql, set_params + where_params)
+        try:
+            self.conn.execute(sql, set_params + where_params)
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                raise TableNotFoundError(f"Table '{table}' does not exist") from e
+            raise QueryError(str(e)) from e
+        except sqlite3.Error as e:
+            raise QueryError(str(e)) from e
         self.conn.commit()
         if returning and rowids:
             placeholders = ", ".join("?" for _ in rowids)
@@ -227,12 +245,19 @@ class SQLiteEngine(BaseEngine):
     ) -> list[dict[str, Any]]:
         where_clause, params = self._build_where(filters)
         results: list[dict[str, Any]] = []
-        if returning:
-            select_sql = f"SELECT * FROM `{table}` {where_clause}"
-            rows = self.conn.execute(select_sql, params).fetchall()
-            results = [self._deserialize_row(r) for r in rows]
-        sql = f"DELETE FROM `{table}` {where_clause}"
-        self.conn.execute(sql, params)
+        try:
+            if returning:
+                select_sql = f"SELECT * FROM `{table}` {where_clause}"
+                rows = self.conn.execute(select_sql, params).fetchall()
+                results = [self._deserialize_row(r) for r in rows]
+            sql = f"DELETE FROM `{table}` {where_clause}"
+            self.conn.execute(sql, params)
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                raise TableNotFoundError(f"Table '{table}' does not exist") from e
+            raise QueryError(str(e)) from e
+        except sqlite3.Error as e:
+            raise QueryError(str(e)) from e
         self.conn.commit()
         return results
 

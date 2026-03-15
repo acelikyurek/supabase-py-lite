@@ -2,6 +2,7 @@
 
 from .auth import AuthClient, AuthError, AuthResponse, Session, User, UserResponse
 from .client import Client
+from .exceptions import QueryError, SingleRowError, SupabaseLiteError, TableNotFoundError
 from .response import APIResponse
 
 __version__ = "0.1.0"
@@ -36,5 +37,9 @@ __all__ = [
     "Session",
     "User",
     "UserResponse",
+    "SupabaseLiteError",
+    "TableNotFoundError",
+    "QueryError",
+    "SingleRowError",
     "__version__",
 ]
