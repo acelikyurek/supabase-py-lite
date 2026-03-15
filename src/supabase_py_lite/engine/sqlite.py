@@ -38,6 +38,35 @@ class SQLiteEngine(BaseEngine):
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self._known_tables: dict[str, set[str]] = {}
+        self._foreign_keys: dict[tuple[str, str], tuple[str, str]] = {}
+
+    def register_foreign_key(
+        self, from_table: str, from_col: str, to_table: str, to_col: str
+    ) -> None:
+        self._foreign_keys[(from_table, from_col)] = (to_table, to_col)
+
+    def resolve_fk(
+        self, from_table: str, to_table: str, hint: Optional[str]
+    ) -> tuple[str, str, bool]:
+        if hint:
+            if (from_table, hint) in self._foreign_keys:
+                _, ref_col = self._foreign_keys[(from_table, hint)]
+                return hint, ref_col, True
+            if (to_table, hint) in self._foreign_keys:
+                _, ref_col = self._foreign_keys[(to_table, hint)]
+                return hint, ref_col, False
+            raise QueryError(
+                f"No FK with hint '{hint}' found for '{from_table}' <-> '{to_table}'"
+            )
+        for (ft, fc), (tt, tc) in self._foreign_keys.items():
+            if ft == from_table and tt == to_table:
+                return fc, tc, True
+        for (ft, fc), (tt, tc) in self._foreign_keys.items():
+            if ft == to_table and tt == from_table:
+                return fc, tc, False
+        raise QueryError(
+            f"No FK relationship found between '{from_table}' and '{to_table}'"
+        )
 
     def ensure_table(self, table: str, columns: dict[str, Any]) -> None:
         if table not in self._known_tables:

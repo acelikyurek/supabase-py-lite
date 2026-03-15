@@ -20,6 +20,30 @@ class Client:
         """Alias for from_()."""
         return self.from_(table)
 
+    def define_foreign_key(
+        self,
+        from_table: str,
+        from_col: str,
+        to_table: str,
+        to_col: str = "id",
+    ) -> None:
+        """Register a FK relationship so embedded selects work.
+
+        Args:
+            from_table: Table that holds the foreign key column.
+            from_col:   The foreign key column name (e.g. "user_id").
+            to_table:   The referenced table (e.g. "users").
+            to_col:     The referenced column, defaults to "id".
+
+        Examples:
+            # posts.user_id -> users.id  (many-to-one)
+            client.define_foreign_key("posts", "user_id", "users")
+
+            # comments.post_id -> posts.id  (one-to-many from posts' perspective)
+            client.define_foreign_key("comments", "post_id", "posts")
+        """
+        self._engine.register_foreign_key(from_table, from_col, to_table, to_col)
+
     def close(self) -> None:
         self._engine.close()
 

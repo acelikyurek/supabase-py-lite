@@ -57,3 +57,23 @@ class BaseEngine(ABC):
     @abstractmethod
     def close(self) -> None:
         ...
+
+    @abstractmethod
+    def register_foreign_key(
+        self, from_table: str, from_col: str, to_table: str, to_col: str
+    ) -> None:
+        """Register a foreign key relationship: from_table.from_col -> to_table.to_col."""
+        ...
+
+    @abstractmethod
+    def resolve_fk(
+        self, from_table: str, to_table: str, hint: Optional[str]
+    ) -> tuple[str, str, bool]:
+        """
+        Resolve the FK relationship between two tables.
+
+        Returns (fk_col, ref_col, is_outgoing) where:
+        - is_outgoing=True: fk_col is on from_table, ref_col is on to_table (many-to-one)
+        - is_outgoing=False: fk_col is on to_table, ref_col is on from_table (one-to-many)
+        """
+        ...
