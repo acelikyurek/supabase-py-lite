@@ -7,11 +7,11 @@ Like Qdrant's `client(":memory:")`, but for Supabase.
 ```python
 from supabase_py_lite import create_client
 
-client = create_client(":memory:")
+supabase_client = create_client(":memory:")
 
-client.from_("users").insert({"id": 1, "name": "Alice"}).execute()
+supabase_client.table("users").insert({"id": 1, "name": "Alice"}).execute()
 
-result = client.from_("users").select("*").eq("name", "Alice").single().execute()
+result = supabase_client.table("users").select("*").eq("name", "Alice").single().execute()
 print(result.data)  # {"id": 1, "name": "Alice"}
 ```
 
@@ -35,19 +35,19 @@ pip install git+https://github.com/acelikyurek/supabase-py-lite
 from supabase_py_lite import create_client
 
 # In-memory (for testing)
-client = create_client(":memory:")
+supabase_client = create_client(":memory:")
 
 # File-based (for persistence)
-client = create_client("./my_app.db")
+supabase_client = create_client("./my_app.db")
 ```
 
 ### Insert
 
 ```python
-client.from_("users").insert({"id": 1, "name": "Alice", "age": 30}).execute()
+supabase_client.table("users").insert({"id": 1, "name": "Alice", "age": 30}).execute()
 
 # Batch insert
-client.from_("users").insert([
+supabase_client.table("users").insert([
     {"id": 2, "name": "Bob", "age": 25},
     {"id": 3, "name": "Charlie", "age": 35},
 ]).execute()
@@ -57,21 +57,21 @@ client.from_("users").insert([
 
 ```python
 # All rows
-res = client.from_("users").select("*").execute()
+res = supabase_client.table("users").select("*").execute()
 
 # Specific columns
-res = client.from_("users").select("id, name").execute()
+res = supabase_client.table("users").select("id, name").execute()
 
 # With count
-res = client.from_("users").select("*", count="exact").execute()
+res = supabase_client.table("users").select("*", count="exact").execute()
 print(res.count)  # 3
 
 # Single row
-res = client.from_("users").select("*").eq("id", 1).single().execute()
+res = supabase_client.table("users").select("*").eq("id", 1).single().execute()
 print(res.data)  # {"id": 1, "name": "Alice", "age": 30}
 
 # Maybe single (returns None instead of raising)
-res = client.from_("users").select("*").eq("id", 999).maybe_single().execute()
+res = supabase_client.table("users").select("*").eq("id", 999).maybe_single().execute()
 print(res.data)  # None
 ```
 
@@ -92,7 +92,7 @@ print(res.data)  # None
 
 # Chain them
 res = (
-    client.from_("users")
+    supabase_client.table("users")
     .select("*")
     .gte("age", 25)
     .lte("age", 35)
@@ -105,22 +105,22 @@ res = (
 ### Update
 
 ```python
-client.from_("users").update({"name": "Alicia"}).eq("id", 1).execute()
+supabase_client.table("users").update({"name": "Alicia"}).eq("id", 1).execute()
 ```
 
 ### Delete
 
 ```python
-client.from_("users").delete().eq("id", 1).execute()
+supabase_client.table("users").delete().eq("id", 1).execute()
 ```
 
 ### Upsert
 
 ```python
-client.from_("users").upsert({"id": 1, "name": "Alice v2"}).execute()
+supabase_client.table("users").upsert({"id": 1, "name": "Alice v2"}).execute()
 
 # Custom conflict column
-client.from_("users").upsert(
+supabase_client.table("users").upsert(
     {"email": "a@b.com", "name": "A"}, on_conflict="email"
 ).execute()
 ```
@@ -128,14 +128,67 @@ client.from_("users").upsert(
 ### JSON columns
 
 ```python
-client.from_("posts").insert({
+supabase_client.table("posts").insert({
     "id": 1,
     "meta": {"tags": ["python", "supabase"], "draft": False}
 }).execute()
 
-res = client.from_("posts").select("*").eq("id", 1).execute()
+res = supabase_client.table("posts").select("*").eq("id", 1).execute()
 print(res.data[0]["meta"]["tags"])  # ["python", "supabase"]
 ```
+
+### Foreign Keys
+
+Register FK relationships with `define_foreign_key`, then use embedded resource syntax in `.select()` to join related data — exactly like Supabase.
+
+```python
+# posts.user_id -> users.id
+supabase_client.define_foreign_key("posts", "user_id", "users")
+
+# comments.post_id -> posts.id
+supabase_client.define_foreign_key("comments", "post_id", "posts")
+```
+
+**Many-to-one** (FK on current table → embeds as a single object):
+
+```python
+res = supabase_client.table("posts").select("id, title, users(name, email)").execute()
+# [{"id": 1, "title": "Hello", "users": {"name": "Alice", "email": "alice@example.com"}}, ...]
+```
+
+**One-to-many** (FK on related table → embeds as a list):
+
+```python
+res = supabase_client.table("posts").select("id, title, comments(body)").execute()
+# [{"id": 1, "title": "Hello", "comments": [{"body": "Great post!"}, ...]}, ...]
+```
+
+**Wildcard on main table:**
+
+```python
+res = supabase_client.table("posts").select("*, users(name)").execute()
+```
+
+**Alias** — rename the embedded key in the result:
+
+```python
+res = supabase_client.table("posts").select("id, author:users(name)").execute()
+# [{"id": 1, "author": {"name": "Alice"}}, ...]
+```
+
+**Hint** — explicitly specify which FK column to use (useful when multiple FKs point to the same table):
+
+```python
+res = supabase_client.table("posts").select("id, users!user_id(name)").execute()
+```
+
+**Multiple embeds in one query:**
+
+```python
+res = supabase_client.table("posts").select("id, users(name), comments(body)").execute()
+```
+
+> The FK join column is added to the query automatically if needed and stripped from the result unless you selected it explicitly.
 
 ## Use in tests
 
@@ -145,13 +198,13 @@ from supabase_py_lite import create_client
 
 @pytest.fixture
 def db():
-    client = create_client(":memory:")
-    yield client
-    client.close()
+    supabase_client = create_client(":memory:")
+    yield supabase_client
+    supabase_client.close()
 
 def test_create_user(db):
-    db.from_("users").insert({"id": 1, "name": "Alice"}).execute()
-    res = db.from_("users").select("*").eq("id", 1).single().execute()
+    db.table("users").insert({"id": 1, "name": "Alice"}).execute()
+    res = db.table("users").select("*").eq("id", 1).single().execute()
     assert res.data["name"] == "Alice"
 ```
 
@@ -173,7 +226,7 @@ def test_create_user(db):
 | `count="exact"` | ✅ |
 | JSON columns | ✅ |
 | Auto-create tables | ✅ |
-| Foreign key joins | 🚧 Planned |
+| Foreign key joins | ✅ |
 | `.or_() / .not_()` | 🚧 Planned |
 
 ## Development
