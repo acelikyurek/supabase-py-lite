@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from ..engine.base import BaseEngine
 from .delete import DeleteQueryBuilder
-from .insert import InsertQueryBuilder
+from .insert import InsertQueryBuilder, ReturnMethod
 from .select import SelectQueryBuilder
 from .update import UpdateQueryBuilder
 
@@ -22,18 +22,34 @@ class TableQueryBuilder:
         return SelectQueryBuilder(self._engine, self._table, columns, count)
 
     def insert(
-        self, data: dict[str, Any] | list[dict[str, Any]]
+        self,
+        data: dict[str, Any] | list[dict[str, Any]],
+        *,
+        returning: ReturnMethod = "representation",
+        count: Optional[str] = None,
     ) -> InsertQueryBuilder:
-        return InsertQueryBuilder(self._engine, self._table, data)
+        return InsertQueryBuilder(
+            self._engine, self._table, data, returning=returning, count=count
+        )
 
     def upsert(
         self,
         data: dict[str, Any] | list[dict[str, Any]],
         *,
         on_conflict: str = "id",
+        ignore_duplicates: bool = False,
+        returning: ReturnMethod = "representation",
+        count: Optional[str] = None,
     ) -> InsertQueryBuilder:
         return InsertQueryBuilder(
-            self._engine, self._table, data, upsert=True, on_conflict=on_conflict
+            self._engine,
+            self._table,
+            data,
+            upsert=True,
+            on_conflict=on_conflict,
+            ignore_duplicates=ignore_duplicates,
+            returning=returning,
+            count=count,
         )
 
     def update(self, values: dict[str, Any]) -> UpdateQueryBuilder:
