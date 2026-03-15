@@ -5,7 +5,7 @@ from .client import Client
 from .exceptions import QueryError, SingleRowError, SupabaseLiteError, TableNotFoundError
 from .response import APIResponse
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 
 def create_client(db_path: str = ":memory:") -> Client:

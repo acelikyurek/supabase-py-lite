@@ -1,6 +1,6 @@
 [project]
 name = "supabase-py-lite"
-version = "0.1.0"
+version = "1.0.0"
 description = "In-memory Supabase client for testing. Drop-in replacement for supabase-py backed by SQLite."
 readme = "README.md"
 license = "MIT"

@@ -26,7 +26,7 @@ print(result.data)  # {"id": 1, "name": "Alice"}
 ## Install
 
 ```bash
-pip install git+https://github.com/acelikyurek/supabase-py-lite
+pip install supabase-py-lite
 ```
 
 ## Usage
