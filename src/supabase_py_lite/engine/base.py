@@ -12,7 +12,7 @@ class BaseEngine(ABC):
         self,
         table: str,
         columns: list[str],
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         order: Optional[list[tuple[str, bool]]],
         limit: Optional[int],
         offset: Optional[int],
@@ -36,7 +36,7 @@ class BaseEngine(ABC):
         self,
         table: str,
         values: dict[str, Any],
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         returning: bool,
     ) -> list[dict[str, Any]]:
         ...
@@ -45,7 +45,7 @@ class BaseEngine(ABC):
     def execute_delete(
         self,
         table: str,
-        filters: list[tuple[str, str, Any]],
+        filters: list[Any],
         returning: bool,
     ) -> list[dict[str, Any]]:
         ...

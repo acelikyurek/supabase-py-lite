@@ -227,7 +227,8 @@ def test_create_user(db):
 | JSON columns | ✅ |
 | Auto-create tables | ✅ |
 | Foreign key joins | ✅ |
-| `.or_() / .not_()` | 🚧 Planned |
+| `.or_()` | ✅ |
+| `.not_()` | ✅ |
 
 ## Development
 
